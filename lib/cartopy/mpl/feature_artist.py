@@ -203,7 +203,8 @@ class FeatureArtist(matplotlib.collections.Collection):
             )
 
         # Extend geometries using extend_geoms()
-        if extent[1]-extent[0] > 360:
+        #if extent[1]-extent[0] > 360:
+        if ax.projection.proj4_init.find(" +over ") != -1:
             if extent[0] < -180:
                 for offset in np.arange(-360, extent[0]-360, -360):
                     geoms_left = extend_geoms(
@@ -217,7 +218,6 @@ class FeatureArtist(matplotlib.collections.Collection):
                         self._feature, extent, xoffset=offset
                     )
                     geoms = chain.from_iterable([geoms, geoms_right])
-
 
         for geom in geoms:
             # As Shapely geometries cannot be relied upon to be
