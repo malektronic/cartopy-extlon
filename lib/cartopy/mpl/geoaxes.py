@@ -1087,13 +1087,27 @@ class GeoAxes(matplotlib.axes.Axes):
 
         """
         if name == 'ne_shaded':
-            source_proj = ccrs.PlateCarree()
+            source_proj = ccrs.PlateCarree(over=True)
             fname = (config["repo_data_dir"] / 'raster' / 'natural_earth'
                      / '50-natural-earth-1-downsampled.png')
 
-            return self.imshow(imread(fname), origin='upper',
+            image = imread(fname)
+            minshift = -540
+            maxshift = 540
+            shifted_image = image
+            # imhlen = int(image.shape[1]/2)
+            # shifted_image = np.concatenate(
+            #     (image[:,imhlen:,:], image[:,:imhlen,:]),
+            #     axis=1
+            # )
+            new_image = np.concatenate(
+                (shifted_image, image, shifted_image), axis=1
+            )
+
+            return self.imshow(new_image, origin='upper',
                                transform=source_proj,
-                               extent=[-180, 180, -90, 90],
+                               extent=[minshift, maxshift, -90, 90],
+                               #extent=self.get_extent(source_proj),
                                **kwargs)
         else:
             raise ValueError(f'Unknown stock image {name!r}.')

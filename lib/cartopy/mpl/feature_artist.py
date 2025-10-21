@@ -15,6 +15,9 @@ import weakref
 import matplotlib.artist
 import matplotlib.collections
 import numpy as np
+import shapely.geometry as sgeom
+import shapely.affinity as saffinity
+from itertools import chain
 
 import cartopy.feature as cfeature
 from cartopy.mpl import _MPL_38
@@ -175,6 +178,47 @@ class FeatureArtist(matplotlib.collections.Collection):
 
         # Project (if necessary) and convert geometries to matplotlib paths.
         key = ax.projection
+
+        # Should extend_geoms be inside or outside the class?
+        # Leaving here for now until I decide.
+        def extend_geoms(feature, extent, xoffset=360):
+            """ 
+            Extend feature geometries beyond 360 degrees by an offset
+            and throw away anything outside of the extent.
+
+            This will only shift the geometries once, so for multiple
+            wraps around the globe you will have to perform this
+            multiple times.
+            """
+            geoms = feature.geometries()
+            extent_geom = sgeom.box(extent[0], extent[2],
+                                    extent[1], extent[3])
+            # I've used a generator here, but it would be better to rewrite
+            # this so the saffinity.translate() method is only run once.
+            return (saffinity.translate(geom, xoff=xoffset, yoff=0)
+                    for geom in geoms
+                    if extent_geom.intersects(
+                            saffinity.translate(geom, xoff=xoffset, yoff=0)
+                    )
+            )
+
+        # Extend geometries using extend_geoms()
+        if extent[1]-extent[0] > 360:
+            if extent[0] < -180:
+                for offset in np.arange(-360, extent[0]-360, -360):
+                    geoms_left = extend_geoms(
+                        self._feature, extent, xoffset=offset
+                    )
+                    geoms = chain.from_iterable([geoms_left, geoms])
+
+            if extent[1] > 180:
+                for offset in np.arange(360, extent[1]+360, 360):
+                    geoms_right = extend_geoms(
+                        self._feature, extent, xoffset=offset
+                    )
+                    geoms = chain.from_iterable([geoms, geoms_right])
+
+
         for geom in geoms:
             # As Shapely geometries cannot be relied upon to be
             # hashable, we have to use a WeakValueDictionary to manage
@@ -187,6 +231,9 @@ class FeatureArtist(matplotlib.collections.Collection):
             # The geom-key is also used to access the WeakKeyDictionary
             # cache of transformed geometries. So when the geom-key is
             # garbage collected so are the transformed geometries.
+
+            # Extend geometries beyond [-180, +180] if necessary /maltron
+
             geom_key = _GeomKey(geom)
             FeatureArtist._geom_key_to_geometry_cache.setdefault(
                 geom_key, geom)

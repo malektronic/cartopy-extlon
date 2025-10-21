@@ -382,30 +382,29 @@ class NaturalEarthFeature_ext(NaturalEarthFeature):
         else:
             geometries = _NATURAL_EARTH_GEOM_CACHE[key]
 
-        if self.extent is not None:
-            if self.extent[1] - self.extent[0] > 360:
-                def extend_geoms(geoms, extent, xoffset=360):
-                    extent_geom = sgeom.box(extent[0], extent[2],
-                                            extent[1], extent[3])
-                    new_geoms = []
-                    for geom in geoms:
-                        geom_ext = saffinity.translate(geom, xoff=xoffset, yoff=0)
-                        if extent_geom.intersects(geom_ext):
-                            new_geoms.append(geom_ext)
-                    return new_geoms
+        # if self.extent is not None:
+        #     if self.extent[1] - self.extent[0] > 360:
+        #         def extend_geoms(geoms, extent, xoffset=360):
+        #             extent_geom = sgeom.box(extent[0], extent[2],
+        #                                     extent[1], extent[3])
+        #             new_geoms = []
+        #             for geom in geoms:
+        #                 geom_ext = saffinity.translate(geom, xoff=xoffset, yoff=0)
+        #                 if extent_geom.intersects(geom_ext):
+        #                     new_geoms.append(geom_ext)
+        #             return new_geoms
 
-                geoms_left = []
-                geoms_right = []
-                if self.extent[1]-self.extent[0] > 360:
-                    if self.extent[0] < -180:
-                        for offset in np.arange(-360, self.extent[0]-360, -360):
-                            geoms_left += extend_geoms(geometries, self.extent, xoffset=offset)
+        #         geoms_left = []
+        #         geoms_right = []
+        #         if self.extent[1]-self.extent[0] > 360:
+        #             if self.extent[0] < -180:
+        #                 for offset in np.arange(-360, self.extent[0]-360, -360):
+        #                     geoms_left += extend_geoms(geometries, self.extent, xoffset=offset)
 
-                    if self.extent[1] > 180:
-                        for offset in np.arange(360, self.extent[1]+360, 360):
-                            geoms_right += extend_geoms(geometries, self.extent, xoffset=offset)
+        #             if self.extent[1] > 180:
+        #                 for offset in np.arange(360, self.extent[1]+360, 360):
+        #                     geoms_right += extend_geoms(geometries, self.extent, xoffset=offset)
 
-                geometries = tuple(geoms_left) + geometries + tuple(geoms_right)
 
         return iter(geometries)
 
