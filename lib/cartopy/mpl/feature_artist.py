@@ -203,7 +203,6 @@ class FeatureArtist(matplotlib.collections.Collection):
             )
 
         # Extend geometries using extend_geoms()
-        #if extent[1]-extent[0] > 360:
         if ax.projection.proj4_init.find(" +over ") != -1:
             if extent[0] < -180:
                 for offset in np.arange(-360, extent[0]-360, -360):
@@ -231,9 +230,6 @@ class FeatureArtist(matplotlib.collections.Collection):
             # The geom-key is also used to access the WeakKeyDictionary
             # cache of transformed geometries. So when the geom-key is
             # garbage collected so are the transformed geometries.
-
-            # Extend geometries beyond [-180, +180] if necessary /maltron
-
             geom_key = _GeomKey(geom)
             FeatureArtist._geom_key_to_geometry_cache.setdefault(
                 geom_key, geom)
