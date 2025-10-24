@@ -14,7 +14,7 @@ from . import ShapelyFeature
 
 class Nightshade(ShapelyFeature):
     def __init__(self, date=None, delta=0.1, refraction=-0.83,
-                 color="k", alpha=0.5, **kwargs):
+                 color="k", alpha=0.5, over=True, **kwargs):
         """
         Shade the darkside of the Earth, accounting for refraction.
 
@@ -45,6 +45,7 @@ class Nightshade(ShapelyFeature):
             raise ValueError(
                 f'datetime instance must be UTC, not {date.tzname()}')
 
+        #breakpoint()
         # Returns the Greenwich hour angle,
         # need longitude (opposite direction)
         lon, lat = _solar_position(date)
@@ -58,7 +59,14 @@ class Nightshade(ShapelyFeature):
 
         rotated_pole = ccrs.RotatedPole(pole_latitude=pole_lat,
                                         pole_longitude=pole_lon,
-                                        central_rotated_longitude=central_lon)
+                                        central_rotated_longitude=central_lon,
+                                        over=True)
+
+        rotated_polef = ccrs.RotatedPole(pole_latitude=pole_lat,
+                                pole_longitude=pole_lon,
+                                central_rotated_longitude=central_lon,
+                                over=False)
+
 
         npts = int(180 / delta)
         x = np.empty(npts * 2)
@@ -94,8 +102,25 @@ class Nightshade(ShapelyFeature):
         kwargs.setdefault('alpha', alpha)
 
         geom = sgeom.Polygon(np.column_stack((x, y)))
-        return super().__init__(
-            [geom], rotated_pole, **kwargs)
+
+        if over is True:
+            # Assume a cylindrical projection for this case
+            # and perform reprojection here
+            #
+            # This approach still leaves narrow gaps between shaded regions.
+            projected_geom = ccrs.PlateCarree(over=True).project_geometry(
+                geom, rotated_pole)
+            px, py = np.array(projected_geom.geoms._get_geom_item(0).boundary.coords.xy)
+            projected_geomf = ccrs.PlateCarree(over=False).project_geometry(
+                geom, rotated_polef)
+            fx, fy = np.array(projected_geomf.geoms._get_geom_item(0).boundary.coords.xy)
+            breakpoint()
+            geom = sgeom.Polygon(np.column_stack((px, py)))
+            return super().__init__(
+                [geom], ccrs.PlateCarree(over=True), **kwargs)
+        else:
+            return super().__init__(
+                [geom], rotated_pole, **kwargs)
 
 
 def _julian_day(date):

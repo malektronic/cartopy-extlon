@@ -179,6 +179,18 @@ class FeatureArtist(matplotlib.collections.Collection):
         # Project (if necessary) and convert geometries to matplotlib paths.
         key = ax.projection
 
+        # Reproject geometries in a function to play nice
+        # when features are associated with non-cylindrical
+        # projections
+        def project_geoms(feature, dest_crs, source_crs):
+            geoms = feature.geometries()
+            if dest_crs != source_crs:
+                return (dest_crs.project_geometry(geom, source_crs)
+                    for geom in geoms
+                )
+            else:
+                return (geom for geom in geoms)
+
         # Should extend_geoms be inside or outside the class?
         # Leaving here for now until I decide.
         def extend_geoms(feature, extent, xoffset=360):
@@ -190,7 +202,7 @@ class FeatureArtist(matplotlib.collections.Collection):
             wraps around the globe you will have to perform this
             multiple times.
             """
-            geoms = feature.geometries()
+            geoms = project_geoms(feature, ax.projection, feature_crs)
             extent_geom = sgeom.box(extent[0], extent[2],
                                     extent[1], extent[3])
             # I've used a generator here, but it would be better to rewrite
@@ -198,15 +210,21 @@ class FeatureArtist(matplotlib.collections.Collection):
             return (saffinity.translate(geom, xoff=xoffset, yoff=0)
                     for geom in geoms
                     if extent_geom.intersects(
-                            saffinity.translate(geom, xoff=xoffset, yoff=0)
+                            saffinity.translate(
+                                geom,
+                                xoff=xoffset, yoff=0
+                            )
                     )
             )
+
+        geoms = project_geoms(self._feature, ax.projection, feature_crs)
 
         # Extend geometries using extend_geoms()
         if ax.projection.proj4_init.find(" +over ") != -1:
             if extent[0] < -180:
                 for offset in np.arange(-360, extent[0]-360, -360):
                     geoms_left = extend_geoms(
+                        #FIXME this needs to be the projected geoms
                         self._feature, extent, xoffset=offset
                     )
                     geoms = chain.from_iterable([geoms_left, geoms])
@@ -237,12 +255,7 @@ class FeatureArtist(matplotlib.collections.Collection):
                 geom_key, {})
             geom_path = mapping.get(key)
             if geom_path is None:
-                if ax.projection != feature_crs:
-                    projected_geom = ax.projection.project_geometry(
-                        geom, feature_crs)
-                else:
-                    projected_geom = geom
-
+                projected_geom = geom
                 geom_path = cpath.shapely_to_path(projected_geom)
                 mapping[key] = geom_path
 
